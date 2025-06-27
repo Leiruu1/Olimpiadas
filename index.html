@@ -1,23 +1,27 @@
-from flask import Flask, render_template_string, request, session, jsonify
-
-app = Flask(__name__)
-app.secret_key = 'tu_clave_secreta'  
-
-
-HTML = """ <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Viaja a tu manera</title>
+  <meta name="description" content="Encontrá hoteles, autos y paquetes ideales para tu próximo viaje. ¡Viaja a tu manera!">
+  <meta name="author" content="Tu nombre o marca">
+  <link rel="icon" href="https://img.icons8.com/emoji/48/world-map-emoji.png" type="image/png">
+
+  <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  
+
+  <!-- Estilos personalizados -->
   <style>
     body {
       background-color: #f8f9fa;
     }
 
-
+    .navbar {
+      position: fixed;
+      width: 100%;
+      z-index: 1000;
+    }
 
     .hero {
       background: linear-gradient(to bottom right, #ff7f50, #ff9966);
@@ -91,7 +95,7 @@ HTML = """ <!DOCTYPE html>
       background: #d5f5e3;
       color: #2e8b57;
     }
-
+    
     .etiquetas .Grupos {
       background: #fff4cc;
       color: #8a6d1f;
@@ -109,12 +113,13 @@ HTML = """ <!DOCTYPE html>
     }
   </style>
 </head>
+
 <body>
 
 <!-- Navbar -->
-<nav class="navbar navbar-light bg-white border-bottom px-3">
+<nav class="a navbar navbar-light bg-white border-bottom px-3">
   <div class="container-fluid">
-    <span class="navbar-brand text-warning fw-bold">🌐 Versión 2</span>
+    <span class="navbar-brand text-warning fw-bold">🌐NazuriSky </span>
     <div>
       <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#cartModal">
           🛒
@@ -270,127 +275,91 @@ HTML = """ <!DOCTYPE html>
     </div>
   </div>
 </section>
-  <div class="modal fade" id="cartModal" tabindex="-1" aria-labelledby="cartModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="cartModalLabel">Tu carrito</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-        </div>
-        <div class="modal-body" id="contenidocarrito">
-          Cargando carrito...
-        </div>
-        <div class="modal-footer">
-          <button onclick="vaciarCarrito()">Vaciar Carrito</button>
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-          <button type="button" class="btn btn-primary" onclick="checkout()">Finalizar compra</button>
-        </div>
+<!-- Modal del carrito -->
+<div class="modal fade" id="cartModal" tabindex="-1" aria-labelledby="cartModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="cartModalLabel">Tu carrito de reservas</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <ul class="list-group" id="cartItems"></ul>
+      </div>
+      <div class="modal-footer d-flex justify-content-between">
+        <h5>Total: <span id="cartTotal">$0</span></h5>
+        <button class="btn btn-success" onclick="location.href='confirmation.html'">Finalizar reserva</button>
       </div>
     </div>
   </div>
+</div>
+
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 <script>
 
-  function vaciarCarrito() {
-  const carrito = document.getElementById('contenidocarrito');
-  carrito.innerHTML = '';  
+
+  let carrito = [];
+
+  function addToCart(nombre, precio) {
+    carrito.push({ nombre, precio });
+    actualizarCartModal();
+  }
+
+  function actualizarCartModal() {
+    const lista = document.getElementById('cartItems');
+    const total = document.getElementById('cartTotal');
+    lista.innerHTML = '';
+
+    let suma = 0;
+
+    if (carrito.length === 0) {
+      lista.innerHTML = '<li class="list-group-item text-center text-muted">Tu carrito está vacío.</li>';
+    } else {
+      carrito.forEach((item, index) => {
+        suma += item.precio;
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+        li.innerHTML = `
+          ${item.nombre}
+          <div>
+            <span class="fw-bold text-warning me-3">$${item.precio}</span>
+            <button class="btn btn-sm btn-outline-danger" onclick="eliminarItem(${index})">✖</button>
+          </div>
+        `;
+        lista.appendChild(li);
+      });
+    }
+
+    total.textContent = `$${suma}`;
+  }
+
+  function eliminarItem(index) {
+    carrito.splice(index, 1);
+    actualizarCartModal();
+  }
+
+ function finalizarReserva() {
+  if (carrito.length === 0) {
+    alert('Tu carrito está vacío.');
+    return;
+  }
+
+  // Guardás la información en localStorage para usar en confirmacion.html si lo necesitás
+  const mensaje = carrito.map(i => `• ${i.nombre} - $${i.precio}`).join('\n');
+  const total = carrito.reduce((suma, item) => suma + item.precio, 0);
+
+  localStorage.setItem('carrito', JSON.stringify(carrito));
+  localStorage.setItem('mensaje', mensaje);
+  localStorage.setItem('total', total);
+
+
 }
 
-  function filtrar(categoria) {
-    const tarjetas = document.querySelectorAll('.tarjeta');
-    tarjetas.forEach(tarjeta => {
-      if (categoria === 'Todos' || tarjeta.dataset.categoria === categoria) {
-        tarjeta.style.display = 'block';
-      } else {
-        tarjeta.style.display = 'none';
-      }
-    });
-  }
-
-  function filtrarEtiqueta(etiqueta) {
-    const tarjetas = document.querySelectorAll('.tarjeta');
-    tarjetas.forEach(tarjeta => {
-      const etiquetas = tarjeta.dataset.etiquetas.split(' ');
-      if (etiquetas.includes(etiqueta)) {
-        tarjeta.style.display = 'block';
-      } else {
-        tarjeta.style.display = 'none';
-      }
-    });
-  }
-
-    function addToCart(name, price) {
-    $.ajax({
-      url: '/add_to_cart',
-      method: 'POST',
-      contentType: 'application/json',
-      data: JSON.stringify({name: name, price: price}),
-      success: function(response) {
-        alert(response.message);
-      }
-    });
-  }
-
-  function loadCart() {
-    $.getJSON('/get_cart', function(cart) {
-      if(cart.length === 0) {
-        $('#cartContent').html('<p>El carrito está vacío.</p>');
-      } else {
-        let html = '<ul>';
-        cart.forEach(item => {
-          html += `<li>${item.name} - $${item.price}</li>`;
-        });
-        html += '</ul>';
-        $('#cartContent').html(html);
-      }
-    });
-  }
-
-  var cartModal = document.getElementById('cartModal')
-  cartModal.addEventListener('show.bs.modal', loadCart)
-
-  function checkout() {
-    alert('Aquí iría la lógica para finalizar la compra');
-  }
 </script>
+
+
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
- """
-
-@app.route('/')
-def index():
- 
-    return render_template_string(HTML)
-
-@app.route('/add_to_cart', methods=['POST'])
-def add_to_cart():
-    data = request.get_json()
-    name = data.get('name')
-    price = data.get('price')
-
-    if not name or price is None:
-        return jsonify({'message': 'Datos incompletos'}), 400
-
-
-    if 'cart' not in session:
-        session['cart'] = []
-
-    # Agregar producto
-    session['cart'].append({'name': name, 'price': price})
-    session.modified = True 
-
-    return jsonify({'message': f'Producto {name} agregado al carrito.'})
-
-@app.route('/get_cart')
-def get_cart():
-    cart = session.get('cart', [])
-    return jsonify(cart)
-
-if __name__ == '__main__':
-    import os
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
-
